@@ -7,133 +7,182 @@ st.set_page_config(page_title="Calculadora Retenciones", page_icon="🧮", layou
 VALOR_UVT = 52500  
 BASE_SERVICIOS_UVT = 2
 BASE_COMPRAS_UVT = 10
+import streamlit as st
 
-# Inicializar la lista de ítems en la sesión para que no se borren al interactuar
-if "items_calculadora" not in st.session_state:
-    st.session_state.items_calculadora = []
+# Inicializar los estados de sesión para ambas calculadoras de forma independiente
+if "items_servicios" not in st.session_state:
+    st.session_state.items_servicios = []
+if "items_compras" not in st.session_state:
+    st.session_state.items_compras = []
 
 st.title("🧮 Calculadora de Retenciones Express")
-st.write("Suma los conceptos de tu cotización o factura y evalúa la retención en la fuente.")
+st.write("Suma de forma independiente tus compras y servicios para evaluar si aplican retención individualmente.")
 
 st.markdown("---")
 
 # ==========================================
-# SECCIÓN 1: CALCULADORA / SUMADORA DE ÍTEMS
+# SECCIÓN 1: SELECCIÓN DEL PROVEEDOR
 # ==========================================
-st.subheader("1. Sumadora de Conceptos")
+st.subheader("1. Información del Proveedor")
+perfil_proveedor = st.selectbox(
+    "Tipo de proveedor que emite la cuenta/factura:", 
+    ["Persona Jurídica", "Persona Natural - Declarante", "Persona Natural - NO Declarante"]
+)
 
-# Formulario para agregar ítems sin recargar la app por cada letra escrita
-with st.form("agregar_item_form", clear_on_submit=True):
-    col_desc, col_val = st.columns([2, 1])
-    with col_desc:
-        descripcion = st.text_input("Descripción del trabajo / repuesto", placeholder="Ej. Cambio de zócalo")
-    with col_val:
-        valor = st.number_input("Valor ($)", min_value=0.0, step=10000.0, format="%.0f")
+st.markdown("---")
+
+# ==========================================
+# SECCIÓN 2: CALCULADORA DE SERVICIOS
+# ==========================================
+st.subheader("🛠️ Calculadora de Servicios")
+st.caption("Agrega aquí la mano de obra, mantenimientos, reparaciones, etc.")
+
+with st.form("form_servicios", clear_on_submit=True):
+    col_desc_s, col_val_s = st.columns([2, 1])
+    with col_desc_s:
+        desc_s = st.text_input("Descripción del servicio", placeholder="Ej. Mano de obra soplador", key="input_desc_s")
+    with col_val_s:
+        val_s = st.number_input("Valor ($)", min_value=0.0, step=10000.0, format="%.0f", key="input_val_s")
     
-    boton_agregar = st.form_submit_button("➕ Agregar a la lista")
+    btn_s = st.form_submit_button("➕ Agregar a Servicios")
 
-if boton_agregar and valor > 0:
-    # Agregar ítem a la lista en el estado de sesión
-    st.session_state.items_calculadora.append({
-        "descripcion": descripcion if descripcion else f"Ítem {len(st.session_state.items_calculadora) + 1}",
-        "valor": valor
+if btn_s and val_s > 0:
+    st.session_state.items_servicios.append({
+        "descripcion": desc_s if desc_s else f"Servicio {len(st.session_state.items_servicios) + 1}",
+        "valor": val_s
     })
 
-# Mostrar la lista de ítems agregados
-monto_total = 0.0
-if st.session_state.items_calculadora:
-    st.write("**Ítems agregados:**")
-    for idx, item in enumerate(st.session_state.items_calculadora):
-        col_item_desc, col_item_val, col_item_borrar = st.columns([5, 3, 1])
-        col_item_desc.write(f"• {item['descripcion']}")
-        col_item_val.write(f"${item['valor']:,.0f}")
-        
-        # Botón para eliminar un ítem específico
-        if col_item_borrar.button("❌", key=f"del_{idx}"):
-            st.session_state.items_calculadora.pop(idx)
+# Mostrar y sumar servicios
+total_servicios = 0.0
+if st.session_state.items_servicios:
+    for idx, item in enumerate(st.session_state.items_servicios):
+        col_it_desc, col_it_val, col_it_del = st.columns([5, 3, 1])
+        col_it_desc.write(f"• {item['descripcion']}")
+        col_it_val.write(f"${item['valor']:,.0f}")
+        if col_it_del.button("❌", key=f"del_s_{idx}"):
+            st.session_state.items_servicios.pop(idx)
             st.rerun()
-            
-        monto_total += item["valor"]
+        total_servicios += item["valor"]
     
-    # Botón para limpiar toda la lista
-    if st.button("🗑️ Limpiar calculadora"):
-        st.session_state.items_calculadora = []
+    if st.button("🗑️ Limpiar Servicios", key="clear_s"):
+        st.session_state.items_servicios = []
         st.rerun()
-else:
-    st.info("La calculadora está vacía. Agrega los ítems de tu cotización arriba.")
 
-# Mostrar el total acumulado de forma destacada
-st.metric(label="Monto Total Acumulado (Base Gravable)", value=f"${monto_total:,.0f}")
+st.metric(label="Total Servicios Acumulado", value=f"${total_servicios:,.0f}")
 
 st.markdown("---")
 
 # ==========================================
-# SECCIÓN 2: PARÁMETROS TRIBUTARIOS
+# SECCIÓN 3: CALCULADORA DE COMPRAS
 # ==========================================
-st.subheader("2. Parámetros de Retención")
+st.subheader("🛒 Calculadora de Compras")
+st.caption("Agrega aquí los bienes físicos, materiales, repuestos o mercancía.")
 
-col_tipo, col_prov = st.columns(2)
-
-with col_tipo:
-    tipo_transaccion = st.selectbox(
-        "Tipo de transacción", 
-        ["Servicios (General)", "Compras (General)"]
-    )
-
-with col_prov:
-    perfil_proveedor = st.selectbox(
-        "Tipo de proveedor", 
-        ["Persona Jurídica", "Persona Natural - Declarante", "Persona Natural - NO Declarante"]
-    )
-
-st.markdown("---")
-
-# ==========================================
-# SECCIÓN 3: CÁLCULO DE LA RETENCIÓN
-# ==========================================
-st.subheader("3. Resultado del Análisis")
-
-if monto_total <= 0:
-    st.warning("Agrega conceptos en la sección 1 para calcular la retención.")
-else:
-    aplica_rete = False
-    tarifa = 0.0
-    base_minima = 0.0
+with st.form("form_compras", clear_on_submit=True):
+    col_desc_c, col_val_c = st.columns([2, 1])
+    with col_desc_c:
+        desc_c = st.text_input("Descripción del bien/repuesto", placeholder="Ej. Compra de empaques o zócalos", key="input_desc_c")
+    with col_val_c:
+        val_c = st.number_input("Valor ($)", min_value=0.0, step=10000.0, format="%.0f", key="input_val_c")
     
-    if "Servicios" in tipo_transaccion:
-        base_minima = BASE_SERVICIOS_UVT * VALOR_UVT
-        if monto_total >= base_minima:
-            aplica_rete = True
-            if perfil_proveedor == "Persona Jurídica":
-                tarifa = 4.0
-            elif perfil_proveedor == "Persona Natural - Declarante":
-                tarifa = 4.0
-            else:  # No declarante
-                tarifa = 6.0
-                
-    elif "Compras" in tipo_transaccion:
-        base_minima = BASE_COMPRAS_UVT * VALOR_UVT
-        if monto_total >= base_minima:
-            aplica_rete = True
-            if perfil_proveedor == "Persona Jurídica":
-                tarifa = 2.5
-            else: # Persona natural (Declarante o No Declarante suele ser 3.5% general en compras)
-                tarifa = 3.5
+    btn_c = st.form_submit_button("➕ Agregar a Compras")
 
-    # Renderizar resultados
-    col_res1, col_res2 = st.columns(2)
-    with col_res1:
-        st.write(f"**Base mínima requerida:** ${base_minima:,.0f} ({base_minima/VALOR_UVT:.0f} UVT)")
-        st.write(f"**Tu valor acumulado:** ${monto_total:,.0f}")
-        
-    with col_res2:
-        if aplica_rete:
-            valor_retencion = monto_total * (tarifa / 100)
-            neto_pagar = monto_total - valor_retencion
-            
-            st.error(f"⚠️ **SÍ APLICA RETENCIÓN**")
-            st.metric(label=f"Retención a Practicar ({tarifa}%)", value=f"${valor_retencion:,.0f}")
-            st.metric(label="Neto a Pagar al Proveedor", value=f"${neto_pagar:,.0f}")
+if btn_c and val_c > 0:
+    st.session_state.items_compras.append({
+        "descripcion": desc_c if desc_c else f"Compra {len(st.session_state.items_compras) + 1}",
+        "valor": val_c
+    })
+
+# Mostrar y sumar compras
+total_compras = 0.0
+if st.session_state.items_compras:
+    for idx, item in enumerate(st.session_state.items_compras):
+        col_it_desc, col_it_val, col_it_del = st.columns([5, 3, 1])
+        col_it_desc.write(f"• {item['descripcion']}")
+        col_it_val.write(f"${item['valor']:,.0f}")
+        if col_it_del.button("❌", key=f"del_c_{idx}"):
+            st.session_state.items_compras.pop(idx)
+            st.rerun()
+        total_compras += item["valor"]
+    
+    if st.button("🗑️ Limpiar Compras", key="clear_c"):
+        st.session_state.items_compras = []
+        st.rerun()
+
+st.metric(label="Total Compras Acumulado", value=f"${total_compras:,.0f}")
+
+st.markdown("---")
+
+# ==========================================
+# SECCIÓN 4: CONSOLIDADO Y DECISIÓN DE RETENCIÓN
+# ==========================================
+st.subheader("📊 Diagnóstico Consolidado")
+
+if total_servicios == 0 and total_compras == 0:
+    st.info("Agrega conceptos en las secciones de arriba para ver el análisis de retención.")
+else:
+    # 1. Evaluación de Servicios
+    base_min_servicios = BASE_SERVICIOS_UVT * VALOR_UVT
+    aplica_rete_servicios = total_servicios >= base_min_servicios
+    tarifa_s = 0.0
+    rete_s = 0.0
+    
+    if aplica_rete_servicios:
+        if perfil_proveedor == "Persona Jurídica":
+            tarifa_s = 4.0
+        elif perfil_proveedor == "Persona Natural - Declarante":
+            tarifa_s = 4.0
         else:
-            st.success("✅ **NO APLICA RETENCIÓN**")
-            st.write("El monto acumulado no supera el tope mínimo legal establecido para este concepto.")
+            tarifa_s = 6.0
+        rete_s = total_servicios * (tarifa_s / 100)
+
+    # 2. Evaluación de Compras
+    base_min_compras = BASE_COMPRAS_UVT * VALOR_UVT
+    aplica_rete_compras = total_compras >= base_min_compras
+    tarifa_c = 0.0
+    rete_c = 0.0
+    
+    if aplica_rete_compras:
+        if perfil_proveedor == "Persona Jurídica":
+            tarifa_c = 2.5
+        else:
+            tarifa_c = 3.5
+        rete_c = total_compras * (tarifa_c / 100)
+
+    # 3. Presentar Resultados en Tabla Limpia
+    st.markdown("### Resumen por concepto")
+    
+    # Crear estructura visual de tabla para que sea fácil de entender
+    st.write(f"**Proveedor:** {perfil_proveedor}")
+    
+    tabla_datos = [
+        {
+            "Concepto": "🛠️ Servicios",
+            "Monto Ingresado": f"${total_servicios:,.0f}",
+            "Base Mínima (UVT)": f"${base_min_servicios:,.0f} (4 UVT)",
+            "¿Supera Base?": "SÍ" if aplica_rete_servicios else "NO",
+            "Tarifa": f"{tarifa_s}%" if aplica_rete_servicios else "N/A",
+            "Retención": f"${rete_s:,.0f}" if aplica_rete_servicios else "$0"
+        },
+        {
+            "Concepto": "🛒 Compras",
+            "Monto Ingresado": f"${total_compras:,.0f}",
+            "Base Mínima (UVT)": f"${base_min_compras:,.0f} (27 UVT)",
+            "¿Supera Base?": "SÍ" if aplica_rete_compras else "NO",
+            "Tarifa": f"{tarifa_c}%" if aplica_rete_compras else "N/A",
+            "Retención": f"${rete_c:,.0f}" if aplica_rete_compras else "$0"
+        }
+    ]
+    st.table(tabla_datos)
+
+    # Totales Finales
+    total_factura = total_servicios + total_compras
+    total_retenciones = rete_s + rete_c
+    neto_a_pagar = total_factura - total_retenciones
+
+    st.markdown("---")
+    st.markdown("### Resumen de Pago")
+    col_f1, col_f2, col_f3 = st.columns(3)
+    col_f1.metric(label="Total Facturado (Bruto)", value=f"${total_factura:,.0f}")
+    col_f2.metric(label="Total Retenciones", value=f"${total_retenciones:,.0f}", delta=f"-${total_retenciones:,.0f}" if total_retenciones > 0 else None, delta_color="inverse")
+    col_f3.metric(label="Neto a Pagar al Proveedor", value=f"${neto_pagar:,.0f}")
