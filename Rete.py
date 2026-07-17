@@ -5,8 +5,8 @@ st.set_page_config(page_title="Calculadora Retenciones", page_icon="🧮", layou
 
 # --- VALOR DE LA UVT (Ejemplo para 2026) ---
 VALOR_UVT = 52500  
-BASE_SERVICIOS_UVT = 10
-BASE_COMPRAS_UVT = 2
+BASE_SERVICIOS_UVT = 2
+BASE_COMPRAS_UVT = 10
 
 # Inicializar la lista de ítems en la sesión para que no se borren al interactuar
 if "items_calculadora" not in st.session_state:
