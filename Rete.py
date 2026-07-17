@@ -175,14 +175,36 @@ else:
     ]
     st.table(tabla_datos)
 
-    # Totales Finales
-    total_factura = total_servicios + total_compras
-    total_retenciones = rete_s + rete_c
-    neto_a_pagar = total_factura - total_retenciones
+    # Totales Finales con conversión explícita a float para evitar errores de tipo
+    total_factura = float(total_servicios + total_compras)
+    total_retenciones = float(rete_s + rete_c)
+    neto_a_pagar = float(total_factura - total_retenciones)
+
+    # Evitar que neto_a_pagar sea negativo por algún error de redondeo o entrada
+    if neto_a_pagar < 0:
+        neto_a_pagar = 0.0
 
     st.markdown("---")
     st.markdown("### Resumen de Pago")
+    
     col_f1, col_f2, col_f3 = st.columns(3)
-    col_f1.metric(label="Total Facturado (Bruto)", value=f"${total_factura:,.0f}")
-    col_f2.metric(label="Total Retenciones", value=f"${total_retenciones:,.0f}", delta=f"-${total_retenciones:,.0f}" if total_retenciones > 0 else None, delta_color="inverse")
-    col_f3.metric(label="Neto a Pagar al Proveedor", value=f"${neto_pagar:,.0f}")
+    
+    # Formateamos los valores en variables de texto antes de pasarlos a st.metric
+    val_factura = f"${total_factura:,.0f}"
+    val_retenciones = f"${total_retenciones:,.0f}"
+    val_neto = f"${neto_a_pagar:,.0f}"
+    
+    col_f1.metric(label="Total Facturado (Bruto)", value=val_factura)
+    
+    # El delta solo se muestra si realmente hay retenciones que restar
+    if total_retenciones > 0:
+        col_f2.metric(
+            label="Total Retenciones", 
+            value=val_retenciones, 
+            delta=f"-{val_retenciones}", 
+            delta_color="inverse"
+        )
+    else:
+        col_f2.metric(label="Total Retenciones", value="$0")
+        
+    col_f3.metric(label="Neto a Pagar al Proveedor", value=val_neto)
